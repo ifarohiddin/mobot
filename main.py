@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 # Configuration
-API_TOKEN = "7202873256:AAEK_kjOD6P3kF4pM5ZqUehff0u5DAQzpfo"
+API_TOKEN = "7876488844:AAFLtipD2pfKgfESPj1PSCWaF9NAqnzImZM"
 MOVIES_FILE = "movies.json"  # Kinolarni saqlash uchun fayl nomi
 CHANNELS_FILE = "channels.json"  # Kanallar ma'lumotlarini saqlash uchun fayl
 
