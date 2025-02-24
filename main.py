@@ -162,10 +162,6 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text="✏️ Kino tahrirlash",
-                callback_data="edit_movie_start"
-            ),
-            InlineKeyboardButton(
                 text="📋 Kinolar ro'yxati",
                 callback_data="list_movies"
             )
