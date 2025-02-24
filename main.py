@@ -142,16 +142,6 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text="✏️ Kino tahrirlash",
-                callback_data="edit_movie_start"
-            ),
-            InlineKeyboardButton(
-                text="🗑️ Kino o'chirish",
-                callback_data="remove_movie_start"
-            )
-        ],
-        [
-            InlineKeyboardButton(
                 text="➕ Kanal qo'shish",
                 callback_data="add_channel_start"
             ),
@@ -171,6 +161,10 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
             )
         ],
         [
+            InlineKeyboardButton(
+                text="✏️ Kino tahrirlash",
+                callback_data="edit_movie_start"
+            ),
             InlineKeyboardButton(
                 text="📋 Kinolar ro'yxati",
                 callback_data="list_movies"
