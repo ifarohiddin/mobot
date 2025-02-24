@@ -5,6 +5,9 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
 
 # Configuration
 API_TOKEN = "7876488844:AAFLtipD2pfKgfESPj1PSCWaF9NAqnzImZM"
@@ -12,9 +15,19 @@ MOVIES_FILE = "movies.json"  # Kinolarni saqlash uchun fayl nomi
 CHANNELS_FILE = "channels.json"  # Kanallar ma'lumotlarini saqlash uchun fayl
 ADMINS_FILE = "admins.json"  # Adminlar ma'lumotlarini saqlash uchun fayl
 
-# Initialize bot and dispatcher
+# State management classes
+class EditMovieStates(StatesGroup):
+    waiting_for_movie_code = State()
+    waiting_for_new_data = State()
+
+class EditChannelStates(StatesGroup):
+    waiting_for_channel_code = State()
+    waiting_for_new_data = State()
+
+# Initialize bot and dispatcher with FSM storage
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
 # Configure logging
 logging.basicConfig(
@@ -129,19 +142,35 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text="➕ Kanal qo'shish",
-                callback_data="add_channel_start"
+                text="✏️ Kino tahrirlash",
+                callback_data="edit_movie_start"
             ),
             InlineKeyboardButton(
-                text="❌ Kanal o'chirish",
-                callback_data="remove_channel_start"
+                text="🗑️ Kino o'chirish",
+                callback_data="remove_movie_start"
             )
         ],
         [
             InlineKeyboardButton(
+                text="➕ Kanal qo'shish",
+                callback_data="add_channel_start"
+            ),
+            InlineKeyboardButton(
+                text="✏️ Kanal tahrirlash",
+                callback_data="edit_channel_start"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="❌ Kanal o'chirish",
+                callback_data="remove_channel_start"
+            ),
+            InlineKeyboardButton(
                 text="📋 Kanallar ro'yxati",
                 callback_data="list_channels"
-            ),
+            )
+        ],
+        [
             InlineKeyboardButton(
                 text="📋 Kinolar ro'yxati",
                 callback_data="list_movies"
@@ -229,6 +258,147 @@ async def add_movie_start(call: types.CallbackQuery):
     )
     await call.answer()
 
+@dp.callback_query(F.data == "edit_movie_start")
+async def edit_movie_start(call: types.CallbackQuery, state: FSMContext):
+    """Start editing a movie process."""
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
+        return
+    
+    movies = load_movies()
+    if not movies:
+        await call.message.edit_text(
+            "ℹ️ Hozircha hech qanday kino qo'shilmagan. Avval kino qo'shing.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_to_admin_menu")
+            ]])
+        )
+        await call.answer()
+        return
+    
+    movie_list = "\n".join([f"- {code}: {info['name']}" for code, info in movies.items()])
+    
+    await state.set_state(EditMovieStates.waiting_for_movie_code)
+    
+    await call.message.edit_text(
+        f"✏️ Qaysi kinoni tahrirlash kerak?\n\nMavjud kinolar:\n{movie_list}\n\n"
+        "Tahrirlash uchun kino kodini yuboring:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
+    )
+    await call.answer()
+
+@dp.message(EditMovieStates.waiting_for_movie_code)
+async def process_movie_code_for_edit(message: types.Message, state: FSMContext):
+    """Process movie code for editing."""
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!")
+        await state.clear()
+        return
+    
+    movies = load_movies()
+    movie_code = message.text.strip()
+    
+    if movie_code not in movies:
+        await message.answer(
+            f"❌ '{movie_code}' kodi bilan kino topilmadi! Iltimos, to'g'ri kino kodini yuboring:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+            ]])
+        )
+        return
+    
+    movie_info = movies[movie_code]
+    
+    await state.update_data(movie_code=movie_code)
+    await state.set_state(EditMovieStates.waiting_for_new_data)
+    
+    await message.answer(
+        f"✏️ '{movie_code}' kodli kino tahrirlash uchun ma'lumotlarni yuboring:\n\n"
+        f"Hozirgi ma'lumotlar:\n"
+        f"- Kino nomi: {movie_info['name']}\n"
+        f"- URL: {movie_info['url']}\n\n"
+        f"Yangi ma'lumotlarni quyidagi formatda yuboring:\n"
+        f"`https://t.me/link|Yangi kino nomi`",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
+    )
+
+@dp.message(EditMovieStates.waiting_for_new_data)
+async def process_new_movie_data(message: types.Message, state: FSMContext):
+    """Process new movie data for editing."""
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!")
+        await state.clear()
+        return
+    
+    data = await state.get_data()
+    movie_code = data.get("movie_code")
+    
+    try:
+        new_url, new_name = message.text.split("|")
+        new_url = new_url.strip()
+        new_name = new_name.strip()
+        
+        # Fayldan mavjud kinolarni yuklash va yangilash
+        movies = load_movies()
+        old_name = movies[movie_code]["name"]
+        movies[movie_code] = {"url": new_url, "name": new_name}
+        save_movies(movies)
+        
+        # Global o'zgaruvchini ham yangilash
+        global MOVIE_STORAGE
+        MOVIE_STORAGE = movies
+        
+        await message.answer(
+            f"✅ Kino tahrirlandi!\n\n"
+            f"🎬 Kino kodi: {movie_code}\n"
+            f"🔄 Eski nomi: {old_name}\n"
+            f"✏️ Yangi nomi: {new_name}",
+            reply_markup=get_admin_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error editing movie: {e}")
+        await message.answer(
+            "❌ Tahrirlashda xatolik yuz berdi. Format to'g'riligini tekshiring.\n\n"
+            "To'g'ri format: `https://t.me/link|Yangi kino nomi`",
+            parse_mode="Markdown"
+        )
+    
+    await state.clear()
+
+@dp.callback_query(F.data == "remove_movie_start")
+async def remove_movie_start(call: types.CallbackQuery):
+    """Start removing a movie process."""
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
+        return
+    
+    movies = load_movies()
+    if not movies:
+        await call.message.edit_text(
+            "ℹ️ Hozircha hech qanday kino qo'shilmagan.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_to_admin_menu")
+            ]])
+        )
+        await call.answer()
+        return
+    
+    movie_list = "\n".join([f"- {code}: {info['name']}" for code, info in movies.items()])
+    
+    await call.message.edit_text(
+        f"🗑️ Qaysi kinoni o'chirish kerak?\n\nMavjud kinolar:\n{movie_list}\n\n"
+        "O'chirish uchun kino kodini yuboring:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
+    )
+    await call.answer()
+
 @dp.callback_query(F.data == "add_channel_start")
 async def add_channel_start(call: types.CallbackQuery):
     """Start adding a channel process."""
@@ -244,6 +414,120 @@ async def add_channel_start(call: types.CallbackQuery):
     )
     await call.answer()
 
+@dp.callback_query(F.data == "edit_channel_start")
+async def edit_channel_start(call: types.CallbackQuery, state: FSMContext):
+    """Start editing a channel process."""
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
+        return
+    
+    channels = load_channels()
+    if not channels:
+        await call.message.edit_text(
+            "ℹ️ Hozircha hech qanday kanal qo'shilmagan. Avval kanal qo'shing.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_to_admin_menu")
+            ]])
+        )
+        await call.answer()
+        return
+    
+    channel_list = "\n".join([f"- {code}: {info['name']}" for code, info in channels.items()])
+    
+    await state.set_state(EditChannelStates.waiting_for_channel_code)
+    
+    await call.message.edit_text(
+        f"✏️ Qaysi kanalni tahrirlash kerak?\n\nMavjud kanallar:\n{channel_list}\n\n"
+        "Tahrirlash uchun kanal kodini yuboring:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
+    )
+    await call.answer()
+
+@dp.message(EditChannelStates.waiting_for_channel_code)
+async def process_channel_code_for_edit(message: types.Message, state: FSMContext):
+    """Process channel code for editing."""
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!")
+        await state.clear()
+        return
+    
+    channels = load_channels()
+    channel_code = message.text.strip()
+    
+    if channel_code not in channels:
+        await message.answer(
+            f"❌ '{channel_code}' kodi bilan kanal topilmadi! Iltimos, to'g'ri kanal kodini yuboring:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+            ]])
+        )
+        return
+    
+    channel_info = channels[channel_code]
+    
+    await state.update_data(channel_code=channel_code)
+    await state.set_state(EditChannelStates.waiting_for_new_data)
+    
+    await message.answer(
+        f"✏️ '{channel_code}' kodli kanalni tahrirlash uchun ma'lumotlarni yuboring:\n\n"
+        f"Hozirgi ma'lumotlar:\n"
+        f"- Kanal nomi: {channel_info['name']}\n"
+        f"- Kanal ID: {channel_info['id']}\n"
+        f"- URL: {channel_info['url']}\n\n"
+        f"Yangi ma'lumotlarni quyidagi formatda yuboring:\n"
+        f"`-100123456789|https://t.me/kanal|Yangi kanal nomi`",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
+    )
+
+@dp.message(EditChannelStates.waiting_for_new_data)
+async def process_new_channel_data(message: types.Message, state: FSMContext):
+    """Process new channel data for editing."""
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!")
+        await state.clear()
+        return
+    
+    data = await state.get_data()
+    channel_code = data.get("channel_code")
+    
+    try:
+        new_id, new_url, new_name = message.text.split("|")
+        new_id = new_id.strip()
+        new_url = new_url.strip()
+        new_name = new_name.strip()
+        
+        # Fayldan mavjud kanallarni yuklash va yangilash
+        channels = load_channels()
+        old_name = channels[channel_code]["name"]
+        channels[channel_code] = {"id": new_id, "url": new_url, "name": new_name}
+        save_channels(channels)
+        
+        # Global o'zgaruvchini ham yangilash
+        global CHANNELS
+        CHANNELS = channels
+        
+        await message.answer(
+            f"✅ Kanal tahrirlandi!\n\n"
+            f"📢 Kanal kodi: {channel_code}\n"
+            f"🔄 Eski nomi: {old_name}\n"
+            f"✏️ Yangi nomi: {new_name}",
+            reply_markup=get_admin_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error editing channel: {e}")
+        await message.answer(
+            "❌ Tahrirlashda xatolik yuz berdi. Format to'g'riligini tekshiring.\n\n"
+            "To'g'ri format: `-100123456789|https://t.me/kanal|Yangi kanal nomi`",
+            parse_mode="Markdown"
+        )
+    
+    await state.clear()
+
 @dp.callback_query(F.data == "remove_channel_start")
 async def remove_channel_start(call: types.CallbackQuery):
     """Start removing a channel process."""
@@ -255,7 +539,10 @@ async def remove_channel_start(call: types.CallbackQuery):
     channel_list = "\n".join([f"- {code}: {info['name']}" for code, info in channels.items()])
     
     await call.message.edit_text(
-        f"🗑 Kanal o'chirish uchun kanal kodini kiriting.\n\nMavjud kanallar:\n{channel_list}"
+        f"🗑 Kanal o'chirish uchun kanal kodini kiriting.\n\nMavjud kanallar:\n{channel_list}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="back_to_admin_menu")
+        ]])
     )
     await call.answer()
 
@@ -308,11 +595,14 @@ async def list_movies_callback(call: types.CallbackQuery):
     await call.answer()
 
 @dp.callback_query(F.data == "back_to_admin_menu")
-async def back_to_admin_menu(call: types.CallbackQuery):
+async def back_to_admin_menu(call: types.CallbackQuery, state: FSMContext):
     """Go back to admin menu."""
     if not is_admin(call.from_user.id):
         await call.answer("⛔ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
         return
+    
+    # State ni tozalash
+    await state.clear()
     
     await call.message.edit_text(
         "👑 Admin paneli\n\nQuyidagi amallardan birini tanlang:",
@@ -321,10 +611,15 @@ async def back_to_admin_menu(call: types.CallbackQuery):
     await call.answer()
 
 @dp.message()
-async def handle_message(message: types.Message):
+async def handle_message(message: types.Message, state: FSMContext):
     """Handle all messages including movie requests and admin commands."""
     try:
         global MOVIE_STORAGE, CHANNELS  # Declare all globals at the beginning
+        
+        # Agar foydalanuvchi biror state ichida bo'lsa, bu habarga javob bermaymiz
+        current_state = await state.get_state()
+        if current_state is not None:
+            return
         
         user_id = message.from_user.id
         
