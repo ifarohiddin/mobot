@@ -1,7 +1,12 @@
 {
-    "main": {
+    "Kino(Asosiy)": {
+        "id": "-1002408655930",
+        "url": "https://t.me/main_Kino_prime",
+        "name": "Asosiy"
+    },
+    "1": {
         "id": "-1001927486162",
         "url": "https://t.me/i_farohiddin",
-        "name": "Kanal 1"
+        "name": "Farohiddin"
     }
-}   
+}

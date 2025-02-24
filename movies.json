@@ -1,5 +1,26 @@
 {
-    "1": {"url": "https://t.me/mykino_server/2", "name": "Sehrli Qirollik"},
-    "2": {"url": "https://t.me/mykino_server/3", "name": "Medellin"},
-    "3": {"url": "https://t.me/mykino_server/4", "name": "Qutqaruv operatsiyasi"}
+    "1": {
+        "url": "https://t.me/mykino_server/2",
+        "name": "Sehrli Qirollik"
+    },
+    "2": {
+        "url": "https://t.me/mykino_server/3",
+        "name": "Medellin"
+    },
+    "3": {
+        "url": "https://t.me/mykino_server/4",
+        "name": "Qutqaruv operatsiyasi"
+    },
+    "4": {
+        "url": "https://t.me/main_server_maaaaaaaaaaaaaaaaaaa/8",
+        "name": " Ovchilar davri"
+    },
+    "5": {
+        "url": "https://t.me/main_server_maaaaaaaaaaaaaaaaaaa/7",
+        "name": "Firibgar ayol"
+    },
+    "6": {
+        "url": "https://t.me/main_server_maaaaaaaaaaaaaaaaaaa/6",
+        "name": "Ajoyib dada"
+    }
 }

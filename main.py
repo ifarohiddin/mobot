@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 # Configuration
-API_TOKEN = "7876488844:AAFLtipD2pfKgfESPj1PSCWaF9NAqnzImZM"
+API_TOKEN = "7202873256:AAEK_kjOD6P3kF4pM5ZqUehff0u5DAQzpfo"
 MOVIES_FILE = "movies.json"  # Kinolarni saqlash uchun fayl nomi
 CHANNELS_FILE = "channels.json"  # Kanallar ma'lumotlarini saqlash uchun fayl
 ADMINS_FILE = "admins.json"  # Adminlar ma'lumotlarini saqlash uchun fayl
@@ -187,7 +187,7 @@ async def send_welcome(message: types.Message):
             movie_list = "\n".join([f"{code} - {info['name']}" for code, info in MOVIE_STORAGE.items()])
             
             await message.answer(
-                f"✅ Xush kelibsiz! Quyidagi kino kodlaridan birini yuboring:\n\n{movie_list}"
+                f"✅ Xush kelibsiz! Kino kodini yuboring:\n"
             )
     except Exception as e:
         logger.error(f"Error in start handler: {e}")
@@ -207,7 +207,7 @@ async def check_subscriptions(call: types.CallbackQuery):
             movie_list = "\n".join([f"{code} - {info['name']}" for code, info in MOVIE_STORAGE.items()])
             
             await call.message.edit_text(
-                f"✅ Obuna tasdiqlandi!\n\nQuyidagi kino kodlaridan birini yuboring:\n{movie_list}"
+                f"✅ Obuna tasdiqlandi!\n\nKino kodini yuboring:\n"
             )
     except Exception as e:
         logger.error(f"Error in subscription check: {e}")
