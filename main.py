@@ -719,7 +719,7 @@ async def handle_message(message: types.Message, state: FSMContext):
             )
         elif not is_admin(user_id):  # Admin uchun xabar chiqarilmaydi, chunki u menu uchun boshqa buyruqlar yuborishi mumkin
             movie_list = "\n".join([f"{code} - {info['name']}" for code, info in MOVIE_STORAGE.items()])
-            await message.answer(f"❌ Noto'g'ri kino kodi kiritildi!\n\nMavjud kino kodlari:\n{movie_list}")
+            await message.answer(f"❌ Noto'g'ri kino kodi kiritildi!\n\n")
     except Exception as e:
         logger.error(f"Error in message handler: {e}")
         await message.answer("Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.")
