@@ -1,6 +1,7 @@
 from aiogram import Bot, types
 from aiogram.types import Update, Message
 from aiogram.fsm.context import FSMContext
+from typing import Union
 import psycopg2
 from dotenv import load_dotenv
 import os
