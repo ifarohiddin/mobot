@@ -15,6 +15,11 @@ from dotenv import load_dotenv
 import psycopg2
 from urllib.parse import urlparse
 import asyncio
+import logging
+
+# Logging sozlash
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -22,7 +27,7 @@ load_dotenv()
 try:
     init_db()
 except Exception as e:
-    print(f"Database initialization failed: {e}")
+    logger.error(f"Database initialization failed: {e}")
     raise
 
 bot = Bot(token=os.getenv("BOT_TOKEN"))
@@ -380,8 +385,13 @@ async def handle_movie_id(message: Message, state: FSMContext):
     if not movie_id.isdigit():
         await message.answer("*❌ Iltimos, to‘g‘ri kino ID’sini kiriting!*\n\nMasalan: *1*", parse_mode="Markdown")
         return
-    await send_movie(message, bot, state, movie_id)
-    await state.clear()
+    try:
+        await send_movie(message, bot, state, movie_id)
+        await state.clear()
+    except Exception as e:
+        logger.error(f"Error sending movie with ID {movie_id}: {e}")
+        await message.answer("*❌ Kino yuborishda xatolik yuz berdi! Iltimos, ID’ni qayta tekshirib ko‘ring yoki admin bilan bog‘laning.*", parse_mode="Markdown")
+        await state.clear()
 
 # Handler'lar
 dp.message.register(request_movie, Command(commands=["get_movie"]))
