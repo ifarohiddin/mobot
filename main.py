@@ -378,7 +378,7 @@ async def handle_edit_channel(message: Message, state: FSMContext):
         await message.answer("*❌ Bunday kanal topilmadi!*\n\nEski kanal ID’sini qayta tekshirib ko‘ring.", parse_mode="Markdown")
     await state.clear()
 
-# Foydalanuvchi va admin uchun kino ID’si handler’i
+# Foydalanuvchi va admin uchun kino ID’si handler’i (doimiy ravishda ishlaydi)
 @dp.message(UserStates.waiting_for_movie_id, lambda message: True)  # Har bir foydalanuvchi uchun, admin ham
 async def handle_movie_id(message: Message, state: FSMContext):
     movie_id = message.text
@@ -387,11 +387,11 @@ async def handle_movie_id(message: Message, state: FSMContext):
         return
     try:
         await send_movie(message, bot, state, movie_id)
-        await state.clear()
+        # Davlatni to‘g‘ri saqlash uchun clear qilmasdan qoldiraman, shunda foydalanuvchi keyingi ID’larni yuborishi mumkin
     except Exception as e:
         logger.error(f"Error sending movie with ID {movie_id}: {e}")
         await message.answer("*❌ Kino yuborishda xatolik yuz berdi! Iltimos, ID’ni qayta tekshirib ko‘ring yoki admin bilan bog‘laning.*", parse_mode="Markdown")
-        await state.clear()
+        await state.clear()  # Xatolik bo‘lganda davlatni tozalash
 
 # Handler'lar
 dp.message.register(request_movie, Command(commands=["get_movie"]))
